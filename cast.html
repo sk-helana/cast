@@ -1,0 +1,586 @@
+<html>
+
+<head>
+    <style>
+        body {
+            color: gray;
+            background-color: rgb(28, 34, 34);
+        }
+
+        canvas {
+            display: inline;
+            clear: none;
+        }
+
+        input {
+            display: block;
+            clear: both;
+            min-width: 90%;
+        }
+
+        .center {
+            margin: auto;
+            border: 1px dashed blue;
+            width: fit-content;
+        }
+
+        .border {
+            border: 1px solid black;
+            clear: both;
+        }
+
+        #debug {
+            color: gray;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div class="center">
+        <canvas id="can1" class="center border" width=600 height=600></canvas>
+        <canvas id="can2" class="center border" width=600 height=600></canvas>
+    </div>
+    <div class="center">
+        <p>Direction</p>
+        <input type="range" class="slider" id="directionSlider">
+        <p>Viewangle</p>
+        <input type="range" class="slider" id="viewangleSlider">
+        <p>Reach</p>
+        <input type="range" class="slider" id="reachSlider">
+        <p>Raystep</p>
+        <input type="range" class="slider" id="raystepSlider">
+    </div>
+    <div id="debug" class="center border"><b>Debugs:</b><br /></div>
+
+    <script>
+        const debug = (text) => { document.querySelector('#debug').innerHTML += `${text}<br/>` }
+        const canvas = document.querySelector('#can1');
+        const canvas1 = document.querySelector('#can2');
+        const ctx = canvas.getContext('2d');
+        const ctx1 = canvas1.getContext('2d');
+        const raystepbase = 1 / 16;
+        let raystep = raystepbase/8;
+        let lastTrace = [];
+
+        const center = { x: canvas.width / 2 + 10, y: canvas.height / 2 };
+
+        ctx.fillStyle = "gray";
+        ctx.fillRect(center.x, center.y, 1, 1);
+
+        const view = {
+            position: { x: canvas.width / 2 + 10, y: canvas.height / 2 - 100 },
+            direction: (Math.PI-0.99),
+            viewangle: Math.PI/5,
+            reach: 1000
+        };
+
+        const colors = [
+            "#ff0011",
+            "#eeaa22",
+            "#dd0033",
+            "#ccaa44",
+            "#bb0055",
+            "#aaaa66",
+            "#990077",
+            "#88aa88",
+            "#770099",
+            "#66aaaa",
+            "#5500bb",
+            "#44aacc",
+            "#3300dd",
+            "#22aaee",
+            "#ff88ff",
+            "#ee88ee",
+            "#dd88dd",
+            "#cc88cc",
+            "#aa88aa",
+        ];
+
+        const walls1 = [
+            { x: 30,  y: 300, color: colors[0], face: -1 },
+            { x: 300, y: 30,  color: colors[1], face: -1 },
+            { x: 500, y: 60,  color: colors[2], face: 1 },
+            { x: 500, y: 600, color: colors[3], face: 1 },
+            { x: 50,  y: 600, color: colors[4], face: 1 },
+            { x: 30,  y: 300, color: colors[5], face: 1 }
+        ];
+
+        const walls2 = [
+            { x: 140, y: 300, color: colors[6],  face: 1 },
+            { x: 180, y: 300, color: colors[7],  face: -1 },
+            { x: 180, y: 350, color: colors[8],  face: -1 },
+            { x: 140, y: 350, color: colors[9],  face: -1 },
+            { x: 140, y: 300, color: colors[10], face: -1 },
+        ];
+
+        const walls3 = [
+            { x: 140 + 100, y: 300 + 100, color: colors[11], face: 1 },
+            { x: 180 + 10,  y: 300 + 100, color: colors[12], face: 1 },
+            { x: 180 + 10,  y: 350 + 100, color: colors[13], face: -1 },
+            { x: 140 + 100, y: 350 + 100, color: colors[14], face: 1 },
+            { x: 140 + 100, y: 300 + 100, color: colors[15], face: 1 },
+        ];
+
+        const walls4 = [
+            { x: 140 + 200, y: 300 + 200, color: colors[16], face:1 },
+            { x: 180 + 20,  y: 300 + 200, color: colors[17], face:1 },
+            { x: 180 + 20,  y: 350 + 200, color: colors[18], face:-1 },
+            { x: 140 + 200, y: 350 + 200, color: colors[19], face:1 },
+            { x: 140 + 200, y: 300 + 200, color: colors[20], face:1 },
+        ];
+
+        const walls = [walls1, walls2, walls3, walls4];
+
+
+        function calcNorms() {
+            for (var n = 0; n < walls.length; n++) {
+                for (var i = 0; i < walls[n].length - 1; i++) {
+
+                    var v0 = {
+                        x0: (walls[n][i].x + walls[n][i + 1].x) / 2,
+                        y0: (walls[n][i].y + walls[n][i + 1].y) / 2,
+                    };
+                    var v = {
+                        x0: v0.x0,
+                        y0: v0.y0,
+                        x: walls[n][i].x - walls[n][i + 1].x,
+                        y: walls[n][i].y - walls[n][i + 1].y
+                    };
+                    var a = Math.atan(v.y / v.x) - walls[n][i].face * Math.PI / 2;
+                    // walls[n][i].norm = {
+                    //     x0: v.x0,
+                    //     y0: v.y0,
+                    //     x: v.x0 + 20 * Math.cos(a),
+                    //     y: v.y0 + 20 * Math.sin(a)
+                    // };
+
+                    walls[n][i] = {
+                        x0: walls[n][i + 1].x,
+                        y0: walls[n][i + 1].y,
+                        norm: {
+                            x0: v.x0,
+                            y0: v.y0,
+                            x: v.x0 + 20 * Math.cos(a),
+                            y: v.y0 + 20 * Math.sin(a)
+                        },
+                        ...walls[n][i]
+                    };
+                }
+            }
+        }
+
+        calcNorms();
+
+        function visibleScalar(viewdir, wall) {
+            const scalar =
+                viewdir.x * (wall.norm.x - wall.norm.x0) +
+                viewdir.y * (wall.norm.y - wall.norm.y0);
+            return scalar < 0;
+        }
+
+        function hasVisibleDirection(wall) {
+            const retval =
+                visibleScalar({
+                    x: 100 * Math.cos(view.direction * 1 + view.viewangle / 2),
+                    y: 100 * Math.sin(view.direction * 1 + view.viewangle / 2)
+                }, wall) ||
+                visibleScalar({
+                    x: 100 * Math.cos(view.direction * 1 - view.viewangle / 2),
+                    y: 100 * Math.sin(view.direction * 1 - view.viewangle / 2)
+                }, wall);
+            return retval;
+        }
+
+        function isOutSideOfView(wall) {
+            var xfactor = view.direction >= Math.PI / 2 && view.direction <= 3 * Math.PI / 2 ? 1 : -1;
+            var yfactor = view.direction <= Math.PI ? -1 : 1;
+
+            var z = (wall.x - view.position.x) * xfactor <= 0 || (wall.x0 - view.position.x) * xfactor <= 0;
+            var w = (wall.y - view.position.y) * yfactor <= 0 || (wall.y0 - view.position.y) * yfactor <= 0;
+
+            return z && w;
+        }
+
+        function pointInView(x,y) {
+            var xfactor = view.direction >= Math.PI / 2 && view.direction <= 3 * Math.PI / 2 ? 1 : -1;
+            var yfactor = view.direction <= Math.PI ? -1 : 1;
+
+            var z = (x - view.position.x) * xfactor <= 0;
+            var w = (y - view.position.y) * yfactor <= 0;
+
+            return z && w;
+        }
+
+        function isVisibleWall(wall) {
+            return hasVisibleDirection(wall) ;//&& isOutSideOfView(wall);
+        }
+
+        function paintwalls() {
+            for (var n = 0; n < walls.length; n++) {
+                for (var i = 0; i < walls[n].length - 1; i++) {
+                    ctx.beginPath();
+
+                    if (!isVisibleWall(walls[n][i])) {
+                        ctx.strokeStyle = "darkgray";
+                        ctx.lineWidth = 1;
+                    }
+                    else {
+                        ctx.strokeStyle = walls[n][i].color;
+                        ctx.lineWidth = 8;
+                    }
+
+                    ctx.moveTo(walls[n][i].x, walls[n][i].y);
+                    ctx.lineTo(walls[n][i + 1].x, walls[n][i + 1].y);
+                    ctx.stroke();
+
+                    ctx.beginPath();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = walls[n][i].color;
+                    ctx.moveTo(walls[n][i].norm.x0, walls[n][i].norm.y0);
+                    ctx.lineTo(walls[n][i].norm.x, walls[n][i].norm.y);
+                    ctx.stroke();
+                }
+            }
+        }
+
+
+        function clearview() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+
+        function paintview() {
+            // center
+            ctx.beginPath();
+            ctx.lineWidth = 2;
+            ctx.strokeStyle = "gray";
+            ctx.moveTo(view.position.x, view.position.y);
+
+            const dir = {
+                x: view.reach * Math.cos(view.direction),
+                y: view.reach * Math.sin(view.direction)
+
+            };
+
+            ctx.lineTo(dir.x + view.position.x, dir.y + view.position.y);
+            ctx.stroke();
+
+            // view
+            const rightmost = {
+                x: view.reach * Math.cos(view.direction * 1 + view.viewangle / 2),
+                y: view.reach * Math.sin(view.direction * 1 + view.viewangle / 2)
+            };
+            const leftmost = {
+                x: view.reach * Math.cos(view.direction * 1 - view.viewangle / 2),
+                y: view.reach * Math.sin(view.direction * 1 - view.viewangle / 2)
+            };
+
+            ctx.beginPath();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "red";
+            ctx.moveTo(leftmost.x + view.position.x, leftmost.y + view.position.y);
+            ctx.lineTo(view.position.x, view.position.y);
+            ctx.lineTo(rightmost.x + view.position.x, rightmost.y + view.position.y);
+            ctx.stroke();
+        }
+
+        const grid = {
+            points:[]
+        }
+
+        function initgrid() {
+            for(let x=10;x<canvas.width;x+=50)
+                for(let y=10;y<canvas.height;y+=50)
+                    grid.points.push({x:x,y:y});
+        }
+        initgrid();
+
+        function paint() {
+            for(const p of grid.points) {
+                var vis = pointInView(p.x,p.y);
+                mark(p.x, p.y, vis?"yellow":"brown");
+                console.log("brown",p);
+            }
+            paintview();
+            paintwalls();
+            trace();
+            paint2();
+        }
+
+        paint();
+
+        const directionSlider = document.querySelector("#directionSlider");
+        const viewangleSlider = document.querySelector("#viewangleSlider");
+        const reachSlider = document.querySelector("#reachSlider");
+        const raystepSlider = document.querySelector("#raystepSlider");
+
+        function repaint(evt) {
+            view.direction = Number.parseFloat(directionSlider.value);
+            view.viewangle = Number.parseFloat(viewangleSlider.value);
+            view.reach = Number.parseFloat(reachSlider.value);
+            raystep = raystepbase / Number.parseFloat(raystepSlider.value);
+
+            clearview();
+            paint();
+        }
+
+        directionSlider.min = 0;
+        directionSlider.max = 2 * Math.PI;
+        directionSlider.value = Number.parseFloat(view.direction);
+        directionSlider.step = raystep;
+        directionSlider.oninput = repaint;
+
+        viewangleSlider.min = 0;
+        viewangleSlider.max = 2 * Math.PI;
+        viewangleSlider.value = Number.parseFloat(view.viewangle);
+        viewangleSlider.step = 0.0001;
+        viewangleSlider.oninput = repaint;
+
+        reachSlider.min = 0;
+        reachSlider.max = 1000;
+        reachSlider.value = Number.parseInt(view.reach);
+        reachSlider.step = 1;
+        reachSlider.oninput = repaint;
+
+        raystepSlider.min = 0;
+        raystepSlider.max = 20;
+        raystepSlider.value = Number.parseInt(raystepbase/raystep);
+        raystepSlider.step = 1;
+        raystepSlider.oninput = repaint;
+
+        canvas.onclick = (evt) => {
+            view.position = { x: evt.x, y: evt.y };
+            repaint();
+        };
+
+        function trace() {
+            lastTrace = []
+            for (var a = -view.viewangle / 2; a < view.viewangle / 2; a += raystep) {
+                const ray = {
+                    x1: view.position.x,
+                    y1: view.position.y,
+                    x2: view.reach * Math.cos(view.direction * 1 + a) + view.position.x,
+                    y2: view.reach * Math.sin(view.direction * 1 + a) + view.position.y,
+                };
+                ctx.beginPath();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "gray";
+                ctx.moveTo(view.position.x, view.position.y);
+                ctx.lineTo(ray.x2, ray.y2);
+                ctx.stroke();
+
+                var hits = [];
+
+                for (var n = 0; n < walls.length; n++) {
+                    for (var i = 0; i < walls[n].length - 1; i++) {
+                        if (!isVisibleWall(walls[n][i])) continue;
+                        const wall = {
+                            x3: walls[n][i].x,
+                            y3: walls[n][i].y,
+                            x4: walls[n][i + 1].x,
+                            y4: walls[n][i + 1].y,
+                        };
+
+                        const p = intersection(ray, wall);
+                        if (p) {
+                            // -a/2         0           a/2
+                            // -a/2         a           a/2
+                            //
+                            //              1
+                            hits.push({
+                                ...p,
+                                distance: Math.sqrt(Math.pow(p.x - view.position.x, 2) + Math.pow(p.y - view.position.y, 2)),
+                                angle: a,
+                                correction: Math.cos(a),
+                                color: walls[n][i].color
+                            });
+                        }
+                    }
+                }
+
+                var min = hits[0];
+
+                if (hits.length < 1) min = {
+                    distance: view.reach,
+                    angle: a,
+                    color: "black"
+                }; else for (var i = 1; i < hits.length; i++)
+                    if (min.distance > hits[i].distance) min = hits[i];
+
+
+                lastTrace.push(min);
+                mark(min.x, min.y, "yellow");
+
+                ctx.beginPath();
+                ctx.lineWidth = 1;
+                ctx.strokeStyle = "yellow";
+                ctx.moveTo(view.position.x, view.position.y);
+                ctx.lineTo(min.x, min.y);
+                ctx.stroke();
+            }
+        }
+
+        function intersection({ x1, y1, x2, y2 }, { x3, y3, x4, y4 }) {
+            //https://en.wikipedia.org/wiki/Line%E2%80%93line_intersection
+            const un = (x1 - x2) * (y1 - y3) - (y1 - y2) * (x1 - x3);
+            const tn = (x1 - x3) * (y3 - y4) - (y1 - y3) * (x3 - x4);
+            const d = (x1 - x2) * (y3 - y4) - (y1 - y2) * (x3 - x4);
+
+            const u = -un / d;
+            const t = tn / d;
+            if (0 <= u && u <= 1 && 0 <= t && t <= 1)
+                return {
+                    x: x3 + u * (x4 - x3),
+                    y: y3 + u * (y4 - y3),
+                    w: 0
+                };
+        }
+
+        function mark(x, y, color) {
+            ctx.fillStyle = color;
+            ctx.fillRect(x - 1, y - 1, 2, 2);
+        }
+
+        function paint2() {
+            ctx1.fillStyle = "lightblue";
+            ctx1.fillRect(0, 0, canvas.width, canvas.height / 2);
+            ctx1.fillStyle = "#444444";
+            ctx1.fillRect(0, canvas1.height / 2, canvas.width, canvas.height);
+
+            const w = canvas1.width / lastTrace.length;
+            var n = 0;
+            for (var i = 0; i < lastTrace.length; i += 1) {
+                const wall = lastTrace[i];
+                ctx1.fillStyle = wall.color;
+                // debug(`correct: ${correct}`);
+
+                //                  height          distance    distance/reach
+                // close            height          0           0
+                // mid              0.5*height      0.5 reach
+                // far              0               reach       1
+                // height * (1-)
+
+                // const distanceCorrect= wall.distance * Math.cos(wall.angle);
+                // const scale = Math.max(1 - Math.max(distanceCorrect/ view.reach, 0),0);
+                // const factor = 100/(wall.distance * Math.cos(wall.angle))*canvas1.height;
+                
+                const distanceCorrected = wall.distance * Math.cos(wall.angle);
+                const rangeFactor = Math.max(1 - wall.distance / view.reach, 0);
+                const scale = rangeFactor * 100 / distanceCorrected * canvas1.height ;
+
+                ctx1.fillRect(i * w, canvas1.height / 2 - scale / 2, w + 1, scale)
+            }
+        }
+        function trace3() {
+            const ray = {
+                x1: view.position.x,
+                y1: view.position.y,
+                x2: 200 * Math.cos(view.direction * 1) + view.position.x,
+                y2: 200 * Math.sin(view.direction * 1) + view.position.y,
+            };
+
+            var hits = [];
+            for (var i = 0; i < walls.length - 1; i++) {
+                const wall = {
+                    x3: walls[i].x,
+                    y3: walls[i].y,
+                    x4: walls[i + 1].x,
+                    y4: walls[i + 1].y,
+                };
+
+                const nom = (ray.x1 - ray.x2) * (wall.y3 - wall.y4) - (ray.y1 - ray.y2) * (wall.x3 - wall.x4);
+                if (nom > 0) {
+                    const f = [
+                        ray.x1 * ray.y2 - ray.y1 * ray.x2,
+                        wall.x3 * wall.y4 - wall.y3 * wall.x4
+                    ];
+                    const intersect = {
+                        x: (f[0] * (wall.x3 - wall.x4) - (ray.x1 - ray.x2) * f[1]) / nom,
+                        y: (f[0] * (wall.y3 - wall.y4) - (ray.y1 - ray.y2) * f[1]) / nom
+                    }
+
+                    hits.push({
+                        ...intersect,
+                        distance: Math.pow(intersect.x - view.position.x, 2) + Math.pow(intersect.y - view.position.y, 2),
+                    });
+                }
+            }
+
+            var min = hits[0];
+            for (var i = 1; i < hits.length; i++)
+                if (min.distance > hits[i].distance) min = hits[i];
+
+            ctx.fillRect(min.x - 5, min.y - 5, 10, 10);
+            ctx.beginPath();
+            ctx.lineWidth = 1;
+            ctx.strokeStyle = "yellow";
+            ctx.moveTo(view.position.x, view.position.y);
+            ctx.lineTo(min.x, min.y);
+            ctx.stroke();
+
+
+        }
+
+
+        // "controls"
+        const keys = { up: 38, down: 40, left: 37, right: 39, escape: 27 };
+        const panStep = Math.PI / 64;
+        const moveStep = 32;
+
+        const momentum = {
+            moveStep: 0,
+            panStep: 0
+        };
+
+        function onKeyDown(event) {
+            let keyCode = ('which' in event) ? event.which : event.keyCode;
+
+            switch (keyCode) {
+                case keys.up:
+                    momentum.moveStep = moveStep;
+                    event.preventDefault();
+                    break;
+                case keys.down:
+                    momentum.moveStep = -moveStep;
+                    event.preventDefault();
+                    break;
+                case keys.left:
+                    momentum.panStep = -panStep;
+                    event.preventDefault();
+                    break;
+                case keys.right:
+                    momentum.panStep = panStep;
+                    event.preventDefault();
+                    break;
+            }
+            move();
+        }
+
+        function move() {
+            let recurse = false;
+            if (Math.abs(momentum.moveStep) > 1) {
+                view.position = {
+                    x: view.position.x + Math.cos(view.direction) * momentum.moveStep,
+                    y: view.position.y + Math.sin(view.direction) * momentum.moveStep,
+                };
+                momentum.moveStep /= 1.7;
+                recurse = true;
+            }
+            if (Math.abs(momentum.panStep) > Math.PI / 360) {
+                view.direction = (view.direction + momentum.panStep) % (2 * Math.PI);
+                directionSlider.value = view.direction;
+                momentum.panStep = momentum.panStep / 1.2;
+                recurse = true;
+            }
+
+            if (recurse) setTimeout(move, 20);
+
+            repaint();
+        }
+
+        document.onkeydown = onKeyDown;
+
+    </script>
+</body>
+
+</html>
