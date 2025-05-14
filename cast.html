@@ -39,6 +39,18 @@
 
     <div class="center">
         <canvas id="can1" class="center border" width=600 height=600></canvas>
+    </div>
+    <div class="center">
+        <div class="border">
+            <button onclick="clearLevel()">Clear</button>
+            <button onclick="deleteSelected()">Delete</button>
+            <button onclick="toggleSelected()">Toggle face</button>
+            <button onclick="mirrorSelected()">Mirror</button>
+            <select name="texture" id="textureSelect" onchange="setTexture()">
+            </select>
+        </div>
+    </div>
+    <div class="center">
         <canvas id="can2" class="center border" width=1200 height=600></canvas>
     </div>
 
@@ -145,18 +157,6 @@
                 heightscale: 1,
                 preprocess: preprocessing.extendImage
             },
-            other: {
-                src: 'assets/img.jpeg',
-                widthscale: 12,
-                heightscale: 1 / 2.1,
-                preprocess: preprocessing.extendImage
-            },
-            lemon: {
-                src: 'assets/lemon.png',
-                widthscale: 4,
-                heightscale: 1 / 1.1,
-                preprocess: preprocessing.extendImage
-            },
             hand1: {
                 src: 'assets/ragnar-random.fantasy-fps-hands/ragnar-random-hands-fantasy/raw/001.png',
                 preprocess: preprocessing.scale(canvas1.width / 2, canvas1.height / 2)
@@ -179,6 +179,16 @@
             }
         }
 
+        function getKey(obj, value) {
+            for (const key in obj) {
+                if (obj[key] === value) {
+                    return key;
+                }
+            }
+            return null; // Om ingen match hittas
+        }
+
+        console.log()
         const action = {
             player: textures.hand1
         };
@@ -207,7 +217,9 @@
                 t.loaded = true;
             };
 
+            let id = 0;
             for (t in textures) {
+                textures[t].id = id++;
                 const image = new Image();
                 image.onload = onload(textures[t], image);
                 image.src = textures[t].src;
@@ -218,70 +230,14 @@
 
         initTextures();
 
-        const walls1 = [
-            { x: 30, y: 300, color: colors[0], texture: textures.bricks, face: -1 },
-            { x: 300, y: 30, color: colors[1], texture: textures.bricks, face: -1 },
-            { x: 500, y: 30, color: colors[2], texture: textures.bricks, face: 1 },
-            { x: 500, y: 80, color: colors[3], texture: textures.other, face: 1 },
-            { x: 500, y: 550, color: colors[3], texture: textures.bricks, face: 1 },
-            { x: 500, y: 600, color: colors[3], texture: textures.bricks, face: 1 },
-            { x: 50, y: 600, color: colors[4], texture: textures.bricks, face: 1 },
-            { x: 30, y: 300, color: colors[5], texture: textures.bricks, face: 1 }
-        ];
+        const walls = [];//maze(); //[walls1, walls2, walls3, walls4];
+        load();
 
-        const walls2 = [
-            { x: 140, y: 300, color: colors[6], texture: textures.stone, face: 1 },
-            { x: 180, y: 300, color: colors[7], texture: textures.lemon, face: -1 },
-            { x: 180, y: 350, color: colors[8], texture: textures.stone, face: -1 },
-            { x: 140, y: 350, color: colors[9], texture: textures.stone, face: -1 },
-            { x: 140, y: 300, color: colors[10], texture: textures.stone, face: -1 },
-        ];
-
-        const walls3 = [
-            { x: 140 + 100, y: 300 + 100, color: colors[11], texture: textures.bricks, face: 1 },
-            { x: 180 + 10, y: 300 + 100, color: colors[12], texture: textures.bricks, face: 1 },
-            { x: 180 + 10, y: 350 + 100, color: colors[13], texture: textures.bricks, face: -1 },
-            { x: 140 + 100, y: 350 + 100, color: colors[14], texture: textures.bricks, face: 1 },
-            { x: 140 + 100, y: 300 + 100, color: colors[15], texture: textures.bricks, face: 1 },
-        ];
-
-        const walls4 = [
-            { x: 140 + 200, y: 300 + 200, color: colors[16], texture: textures.other, face: 1 },
-            { x: 180 + 20, y: 300 + 200, color: colors[17], texture: textures.bricks, face: 1 },
-            { x: 180 + 20, y: 350 + 200, color: colors[18], texture: textures.bricks, face: -1 },
-            { x: 140 + 200, y: 350 + 200, color: colors[19], texture: textures.bricks, face: 1 },
-            { x: 140 + 200, y: 300 + 200, color: colors[20], texture: textures.bricks, face: 1 },
-        ];
-
-        function maze() {
-            const t = { color: colors[0], texture: textures.bricks };
-            const walls = [];
-            walls.push({ x0: 10, y0: 10, x1: 100, y1: 10, face: -1, ...t });
-            walls.push({ x0: 10, y0: 10, x1: 10, y1: 100, face: -1, ...t });
-            walls.push({ x0: 10, y0: 100, x1: 10, y1: 500, face: -1, ...t });
-            walls.push({ x0: 100, y0: 10, x1: 100, y1: 400, face: 1, ...t });
-
-            walls.push({ x0: 200, y0: 400, x1: 100, y1: 400, face: -1, ...t });
-            walls.push({ x0: 200, y0: 400, x1: 200, y1: 10, face: 1, ...t });
-            walls.push({ x0: 550, y0: 500, x1: 550, y1: 10, face: -1, ...t });
-            walls.push({ x0: 550, y0: 10, x1: 400, y1: 10, face: -1, ...t });
-            walls.push({ x0: 400, y0: 10, x1: 400, y1: 400, face: -1, ...t });
-            walls.push({ x0: 400, y0: 400, x1: 300, y1: 400, face: -1, ...t });
-            walls.push({ x0: 300, y0: 400, x1: 300, y1: 10, face: -1, ...t });
-            walls.push({ x0: 300, y0: 10, x1: 200, y1: 10, face: -1, ...t });
-
-
-            walls.push({ x0: 150, y0: 500, x1: 10, y1: 500, face: 1, ...t });
-            walls.push({ x0: 550, y0: 500, x1: 350, y1: 500, face: 1, ...t });
-
-            walls.push({ x0: 350, y0: 600, x1: 350, y1: 500, face: -1, ...t });
-            walls.push({ x0: 150, y0: 500, x1: 150, y1: 600, face: -1, ...t });
-
-            walls.push({ x0: 550, y0: 700, x1: 10, y1: 700, texture: textures.stone, face: 1});
-
-            return walls;
+        function clearLevel() {
+            walls.splice(0, walls.length);
+            localStorage.removeItem("walls");
+            repaint();
         }
-        const walls = maze(); //[walls1, walls2, walls3, walls4];
 
         function calcNorms() {
             for (var n = 0; n < walls.length; n++) {
@@ -293,16 +249,12 @@
                 };
                 var a = Math.atan(v.y / v.x) - walls[n].face * Math.PI / 2;
 
-                walls[n] = {
-                    x0: walls[n].x,
-                    y0: walls[n].y,
-                    norm: {
-                        x0: v.x0,
-                        y0: v.y0,
-                        x: v.x0 + 20 * Math.cos(a),
-                        y: v.y0 + 20 * Math.sin(a)
-                    },
-                    ...walls[n]
+                walls[n].norm = {
+                    x0: v.x0,
+                    y0: v.y0,
+                    x: v.x0 + 20 * Math.cos(a),
+                    y: v.y0 + 20 * Math.sin(a)
+
                 };
 
             }
@@ -413,11 +365,24 @@
             return lineInView(wall) && hasVisibleDirection(wall);//&& isOutSideOfView(wall);
         }
 
+        function line({ x0, y0 }, { x1, y1 }, style) {
+            ctx.beginPath();
+            ctx.strokeStyle = style;
+            ctx.lineWidth = 8;
+            ctx.moveTo(x0, y0);
+            ctx.lineTo(x1, y1);
+            ctx.stroke();
+        }
+
         function paintwalls() {
             for (var n = 0; n < walls.length; n++) {
                 ctx.beginPath();
 
-                if (!isVisibleWall(walls[n])) {
+                if (bla.selected?.id == walls[n].id) {
+                    ctx.strokeStyle = "yellow";
+                    ctx.lineWidth = 12;
+
+                } else if (!isVisibleWall(walls[n])) {
                     ctx.strokeStyle = "darkgray";
                     ctx.lineWidth = 1;
                 }
@@ -430,18 +395,24 @@
                 ctx.lineTo(walls[n].x1, walls[n].y1);
                 ctx.stroke();
 
-                ctx.beginPath();
-                ctx.lineWidth = 2;
-                ctx.strokeStyle = walls[n].color;
-                ctx.moveTo(walls[n].norm.x0, walls[n].norm.y0);
-                ctx.lineTo(walls[n].norm.x, walls[n].norm.y);
-                ctx.stroke();
+                if (walls[n].norm) {
+                    ctx.beginPath();
+                    ctx.lineWidth = 2;
+                    ctx.strokeStyle = walls[n].color;
+                    ctx.moveTo(walls[n].norm.x0, walls[n].norm.y0);
+                    ctx.lineTo(walls[n].norm.x, walls[n].norm.y);
+                    ctx.stroke();
+                }
             }
+
+            if (bla.start && bla.end) line({ x0: bla.start.x, y0: bla.start.y }, { x1: bla.end.x, y1: bla.end.y }, "white");
+            if (bla.start) mark(bla.start.x, bla.start.y, "white");
+            if (bla.end) mark(bla.end.x, bla.end.y, "yellow");
         }
 
 
         function clearview() {
-            ctx.clearRect(0, 0, canvas.width*2, canvas.height*2); //scale
+            ctx.clearRect(0, 0, canvas.width * 2, canvas.height * 2); //scale
         }
 
         function paintview() {
@@ -484,8 +455,8 @@
         }
 
         function initgrid() {
-            for (let x = 10; x < canvas.width; x += 50)
-                for (let y = 10; y < canvas.height; y += 50)
+            for (let x = 10; x < canvas.width * 2; x += 50)
+                for (let y = 10; y < canvas.height * 2; y += 50)
                     grid.points.push({ x: x, y: y });
         }
         initgrid();
@@ -506,6 +477,7 @@
         const raystepSlider = document.querySelector("#raystepSlider");
 
         function repaint(evt) {
+            save();
             view.viewangle = Number.parseFloat(viewangleSlider.value);
             view.reach = Number.parseFloat(reachSlider.value);
             raystep = raystepbase / Number.parseFloat(raystepSlider.value);
@@ -532,13 +504,111 @@
         raystepSlider.step = 1;
         raystepSlider.oninput = repaint;
 
-        canvas.onclick = (evt) => {
+        const bla = {
+            start: undefined,
+            end: undefined,
+            isSelecting: false,
+            isDrawing: false,
+            selected: undefined
+        }
+
+        canvas.onmousedown = (evt) => {
             const rect = canvas.getBoundingClientRect();
             const x = evt.clientX - rect.left;
             const y = evt.clientY - rect.top;
-            view.position = { x: x*2, y: y*2}; //scale
+
+            const closest = {
+                point: undefined,
+                distance: undefined
+            };
+            for (p of grid.points) {
+                const dist = Math.pow(x * 2 - p.x, 2) + Math.pow(y * 2 - p.y, 2);
+                if (!closest.distance || closest.distance > dist) {
+                    closest.point = p;
+                    closest.distance = dist;
+                }
+            }
+            if (evt.ctrlKey) {
+                view.position = { x: closest.point.x, y: closest.point.y }
+            }
+            else if (evt.altKey) {
+                bla.isSelecting = true;
+            } else if (!bla.isDrawing) {
+                bla.selected = undefined;
+                bla.isDrawing = true;
+                bla.start = closest.point;
+            }
+
             repaint();
         };
+
+        canvas.onmousemove = (evt) => {
+            if (!bla.isDrawing) {
+                return;
+            }
+
+            const rect = canvas.getBoundingClientRect();
+            const x = evt.clientX - rect.left;
+            const y = evt.clientY - rect.top;
+
+            const closest = {
+                point: undefined,
+                distance: undefined
+            };
+            for (p of grid.points) {
+                const dist = Math.pow(x * 2 - p.x, 2) + Math.pow(y * 2 - p.y, 2);
+                if (!closest.distance || closest.distance > dist) {
+                    closest.point = p;
+                    closest.distance = dist;
+                }
+            }
+
+            if (bla.end && bla.end.x == closest.point.x && bla.end.y == closest.point.y)
+                return;
+            bla.end = closest.point;
+
+            repaint();
+        };
+
+        canvas.onmouseup = (evt) => {
+
+            if (bla.isDrawing) {
+                const t = { color: colors[0], textureId: getKey(textures, textures.bricks) };
+
+                if (bla.start && bla.end) {
+                    const wall = { id: walls.length, x0: bla.start.x, y0: bla.start.y, x1: bla.end.x, y1: bla.end.y, face: -1, ...t };
+                    walls.push(wall);
+
+                    calcNorms();
+                    setSelected(wall);
+                }
+            } else if (bla.isSelecting) {
+                const rect = canvas.getBoundingClientRect();
+                const x = (evt.clientX - rect.left) * 2;
+                const y = (evt.clientY - rect.top) * 2;
+
+                let mindist = undefined, minwall = undefined;
+                for (wall of walls) {
+                    const points = [{ x: wall.x0, y: wall.y0 }, { x: wall.x1, y: wall.y1 }, { x: wall.norm.x0, y: wall.norm.y0 }];
+                    for (point of points) {
+                        const dist = Math.pow(x - point.x, 2) + Math.pow(y - point.y, 2);
+                        if (!mindist || dist < mindist) {
+                            mindist = dist;
+                            minwall = wall;
+                        }
+                    }
+                }
+
+                if (minwall)
+                    setSelected(minwall);
+            }
+
+            bla.start = undefined;
+            bla.end = undefined;
+            bla.isDrawing = false;
+            bla.ambigous = false;
+            repaint();
+        }
 
         function trace() {
             lastTrace = []
@@ -592,7 +662,7 @@
                             angle: a,
                             correction: Math.cos(a),
                             color: walls[n].color,
-                            texture: walls[n].texture
+                            textureId: walls[n].textureId
                         });
                     }
 
@@ -664,39 +734,22 @@
             ctx1.fillStyle = "#444444";
             ctx1.fillRect(0, canvas1.height / 2, canvas1.width, canvas1.height);
 
-            // const line = {x1: canvas1.width/2, y1: canvas1.height/2, x2: canvas1.width/2, y2: canvas1.height}
-            // ctx1.beginPath();
-            // ctx1.lineWidth = 2;
-            // ctx1.strokeStyle = "#000000";
-            // ctx1.moveTo(line.x1, line.y1);
-            // ctx1.lineTo(line.x2, line.y2);
-            // ctx1.stroke();
-
-
             const w = canvas1.width / lastTrace.length;
 
             var n = 0;
             for (var i = 0; i < lastTrace.length; i += 1) {
                 const wall = lastTrace[i];
                 ctx1.fillStyle = wall.color;
-                // debug(`correct: ${correct}`);
-
-                //                  height          distance    distance/reach
-                // close            height          0           0
-                // mid              0.5*height      0.5 reach
-                // far              0               reach       1
-                // height * (1-)
-
                 const distanceCorrected = wall.distance * Math.cos(wall.angle);
                 const rangeFactor = Math.max(1 - wall.distance / view.reach, 0);
                 const scale = rangeFactor * 100 / distanceCorrected * canvas1.height;
 
-                if (!wall.texture || !wall.texture.loaded) {
+                if (!wall.textureId || !textures[wall.textureId].loaded) {
                     ctx1.fillRect(i * w, canvas1.height / 2 - scale / 2, w + 1, scale)
                 } else {
-                    const tex = wall.texture.bmp;
-                    ctx1.drawImage(tex,
-                        (wall.textureFix * wall.texture.widthscale) % wall.texture.tilewidth, 0, wall.textureLen * wall.texture.widthscale, tex.height * wall.texture.heightscale,
+                    const texture = textures[wall.textureId];
+                    ctx1.drawImage(texture.bmp,
+                        (wall.textureFix * texture.widthscale) % texture.tilewidth, 0, wall.textureLen * texture.widthscale, texture.bmp.height * texture.heightscale,
                         i * w, canvas1.height / 2 - scale / 2, w + 1, scale);
                 }
 
@@ -707,6 +760,68 @@
                         canvas1.width / 2, canvas1.height / 2, canvas1.width / 2, canvas1.height / 2);
 
                 }
+                // ctx1.fillStyle = "black";
+                // ctx1.fillRect(i * w, canvas1.height / 2 - scale / 2, 2, scale)
+            }
+        }
+
+        function onKeyDown(event) {
+        }
+
+        repaint();
+
+        function toggleSelected() {
+            if (bla.selected) {
+                bla.selected.face *= -1;
+                calcNorms();
+            }
+        }
+
+        const textureSelect = document.querySelector("#textureSelect");
+        for (t in textures) {
+            var opt = document.createElement('option');
+            opt.value = t;
+            opt.innerHTML = t;
+            textureSelect.appendChild(opt);
+        }
+
+        function setTexture() {
+            console.log("!")
+            bla.selected.textureId = textureSelect.value;
+
+        }
+
+        function mirrorSelected() {
+            [bla.selected.x0, bla.selected.y0, bla.selected.x1, bla.selected.y1] = [bla.selected.x1, bla.selected.y1, bla.selected.x0, bla.selected.y0];
+
+        }
+
+        function setSelected(wall) {
+            bla.selected = wall;
+            textureSelect.value = wall.textureId;
+        }
+
+        function deleteSelected() {
+            if (bla.selected) {
+                for (var i = 0; i < walls.length; i++)
+                    if (walls[i].id == bla.selected.id) {
+                        walls.splice(i, 1);
+                        break;
+                    }
+                repaint();
+            }
+        }
+
+        function save() {
+            localStorage.setItem("walls", JSON.stringify(walls));
+        }
+
+        function load() {
+            const blob = localStorage.getItem("walls");
+            if (blob) {
+                const storedWalls = JSON.parse(blob);
+                for (wall of storedWalls)
+                    walls.push(wall);
             }
         }
 
